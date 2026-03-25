@@ -1,9 +1,14 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateUserDto } from './dtos/create-user.dto';
 import { User } from 'src/database/generated/prisma/client';
 import { BcryptService } from 'src/shared/security/services/bcrypt.service';
 import { PrismaService } from 'src/database/prisma.service';
 import { PrismaClientKnownRequestError } from 'src/database/generated/prisma/internal/prismaNamespace';
+import { UserWithoutPassword } from './types/user.type';
 
 @Injectable()
 export class UserService {
@@ -39,5 +44,19 @@ export class UserService {
 
   async findByEmail(email: string): Promise<User | null> {
     return this.prisma.user.findUnique({ where: { email } });
+  }
+
+  async findById(id: string): Promise<UserWithoutPassword> {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      omit: { password: true },
+    });
+    if (!user)
+      throw new NotFoundException({
+        message: 'User with provided id not found',
+        code: 'USER_NOT_FOUND',
+      });
+
+    return user;
   }
 }

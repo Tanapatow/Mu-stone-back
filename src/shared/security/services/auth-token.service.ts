@@ -16,4 +16,10 @@ export class AuthTokenService {
       expiresIn: this.typedConfigService.get('JWT_EXPIRES_IN'),
     });
   }
+
+  verify(token: string): Promise<JwtPayload> {
+    return this.jwtService.verifyAsync(token, {
+      secret: this.typedConfigService.get('JWT_SECRET'),
+    });
+  }
 }
