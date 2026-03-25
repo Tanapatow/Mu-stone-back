@@ -72,36 +72,56 @@ model Address {
   userId String @unique @map("user_id")
   user   User   @relation(fields: [userId], references: [id])
 
-  receiverName String @map("receiver_name")
+  receiverName String   @map("receiver_name")
   phone        String
-  addressLine1 String @map("address_line_1")
-  subDistrict  String @map("sub_district")
+  addressLine1 String   @map("address_line_1")
+  subDistrict  String   @map("sub_district")
   district     String
   province     String
-  postalCode   String @map("postal_code")
+  postalCode   String   @map("postal_code")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz()
 
   @@map("addresses")
 }
 
 // 3. สินค้า (Product)
 model Product {
-  id          String   @id @default(uuid())
+  id          String         @id @default(uuid())
   name        String
-  description String   @db.Text
-  price       Decimal  @db.Decimal(10, 2)
-  imageUrl    String   @map("image_url")
-  stock       Int      @default(0)
-  stoneType   String   @map("stone_type")
+  description String         @db.Text
+  price       Decimal        @db.Decimal(10, 2)
+  images      ProductImage[]
+  stock       Int            @default(0)
+  stoneType   String         @map("stone_type")
   benefit     String
-  isActive    Boolean  @default(true) @map("is_active")
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
-  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+  isActive    Boolean        @default(true) @map("is_active")
+  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime       @updatedAt @map("updated_at") @db.Timestamptz()
 
   orderItems  OrderItem[]
   cartItems   CartItem[]
   fortuneLogs FortuneLog[]
 
   @@map("products")
+}
+
+model ProductImage {
+  id  String @id @default(uuid())
+  url String @db.Text // URL ของรูป (เช่น จาก Cloudinary)
+
+  // ✨ ฟิลด์เสริมระดับ Pro สำหรับ E-commerce
+  isMain       Boolean @default(false) @map("is_main") // กำหนดว่ารูปนี้เป็น "รูปหน้าปก" หรือไม่
+  displayOrder Int     @default(0) @map("display_order") // ลำดับการแสดงผล (รูปที่ 1, 2, 3...)
+
+  // 🔗 ความสัมพันธ์กับ Product (ถ้าลบ Product ทิ้ง ให้ลบรูปพวกนี้ทิ้งด้วยอัตโนมัติ)
+  productId String  @map("product_id")
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  @@map("product_images")
 }
 
 // 4. ตะกร้าสินค้า (Cart System)
