@@ -1,0 +1,239 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/database/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+//  ENUMS
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  SHIPPED
+  CANCELLED
+}
+
+enum ChatStatus {
+  OPEN
+  CLOSED
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+//  MODELS
+
+// 1. ผู้ใช้งาน (User)
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  firstName String   @map("first_name")
+  lastName  String   @map("last_name")
+  dob       DateTime @db.Date
+  gender    Gender
+
+  isActive Boolean @default(true) @map("is_active")
+  role     Role    @default(USER)
+
+  address      Address?
+  cart         Cart?
+  orders       Order[]
+  fortuneLogs  FortuneLog[]
+  chatRooms    ChatRoom[]
+  sentMessages Message[]    @relation("SentMessages")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  @@map("users")
+}
+
+//  2. ที่อยู่ (Address)
+model Address {
+  id     String @id @default(uuid())
+  userId String @unique @map("user_id")
+  user   User   @relation(fields: [userId], references: [id])
+
+  receiverName String   @map("receiver_name")
+  phone        String
+  addressLine1 String   @map("address_line_1")
+  subDistrict  String   @map("sub_district")
+  district     String
+  province     String
+  postalCode   String   @map("postal_code")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  @@map("addresses")
+}
+
+// 3. สินค้า (Product)
+model Product {
+  id          String         @id @default(uuid())
+  name        String
+  description String         @db.Text
+  price       Decimal        @db.Decimal(10, 2)
+  images      ProductImage[]
+  stock       Int            @default(0)
+  stoneType   String         @map("stone_type")
+  benefit     String
+  isActive    Boolean        @default(true) @map("is_active")
+  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime       @updatedAt @map("updated_at") @db.Timestamptz()
+
+  orderItems  OrderItem[]
+  cartItems   CartItem[]
+  fortuneLogs FortuneLog[]
+
+  @@map("products")
+}
+
+model ProductImage {
+  id  String @id @default(uuid())
+  url String @db.Text // URL ของรูป (เช่น จาก Cloudinary)
+
+  // ✨ ฟิลด์เสริมระดับ Pro สำหรับ E-commerce
+  isMain       Boolean @default(false) @map("is_main") // กำหนดว่ารูปนี้เป็น "รูปหน้าปก" หรือไม่
+  displayOrder Int     @default(0) @map("display_order") // ลำดับการแสดงผล (รูปที่ 1, 2, 3...)
+
+  // 🔗 ความสัมพันธ์กับ Product (ถ้าลบ Product ทิ้ง ให้ลบรูปพวกนี้ทิ้งด้วยอัตโนมัติ)
+  productId String  @map("product_id")
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  @@map("product_images")
+}
+
+// 4. ตะกร้าสินค้า (Cart System)
+model Cart {
+  id        String     @id @default(uuid())
+  userId    String     @unique @map("user_id")
+  user      User       @relation(fields: [userId], references: [id])
+  items     CartItem[]
+  createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime   @updatedAt @map("updated_at") @db.Timestamptz()
+
+  @@map("carts")
+}
+
+model CartItem {
+  id        String @id @default(uuid())
+  cartId    String @map("cart_id")
+  productId String @map("product_id")
+  quantity  Int    @default(1)
+
+  cart    Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("cart_items")
+}
+
+// 5. ระบบแชท (Chat System)
+model ChatRoom {
+  id        String     @id @default(uuid())
+  userId    String     @map("user_id")
+  user      User       @relation(fields: [userId], references: [id])
+  status    ChatStatus @default(OPEN)
+  messages  Message[]
+  createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime   @updatedAt @map("updated_at") @db.Timestamptz()
+
+  @@map("chat_rooms")
+}
+
+model Message {
+  id        String   @id @default(uuid())
+  content   String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  roomId   String   @map("room_id")
+  chatRoom ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  senderId String  @map("sender_id")
+  isRead   Boolean @default(false) @map("is_read")
+  sender   User    @relation("SentMessages", fields: [senderId], references: [id])
+
+  @@map("messages")
+}
+
+// 6. สารบัญไพ่ทาโร่ (Tarot Card)
+model TarotCard {
+  id          Int    @id @default(autoincrement())
+  name        String @unique
+  nameThai    String @map("name_thai")
+  imagePath   String @map("image_path")
+  baseMeaning String @map("base_meaning") @db.Text
+
+  fortuneLogs FortuneLog[]
+
+  @@map("tarot_cards")
+}
+
+// 7. ประวัติการทำนายดวง (Fortune Log)
+model FortuneLog {
+  id     String @id @default(uuid())
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id])
+  topic  String @default("General")
+
+  cards          TarotCard[]
+  predictionText String      @map("prediction_text") @db.Text
+
+  recommendedProductId String?  @map("recommended_product_id")
+  product              Product? @relation(fields: [recommendedProductId], references: [id])
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@map("fortune_logs")
+}
+
+// 8. คำสั่งซื้อ (Order)
+model Order {
+  id          String      @id @default(uuid())
+  userId      String      @map("user_id")
+  user        User        @relation(fields: [userId], references: [id])
+  totalAmount Decimal     @map("total_amount") @db.Decimal(10, 2)
+  status      OrderStatus @default(PENDING)
+
+  stripeSessionId         String? @unique @map("stripe_session_id")
+  shippingAddressSnapshot String  @map("shipping_address_snapshot") @db.Text
+
+  items     OrderItem[]
+  createdAt DateTime    @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime    @updatedAt @map("updated_at") @db.Timestamptz()
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String  @id @default(uuid())
+  orderId   String  @map("order_id")
+  productId String  @map("product_id")
+  quantity  Int
+  price     Decimal @db.Decimal(10, 2)
+
+  order   Order   @relation(fields: [orderId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("order_items")
+}
