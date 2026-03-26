@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -40,6 +41,7 @@ export class ProductController {
     return await this.produceService.findById(id);
   }
 
+  @ResponseMessage('อัปเดตข้อมูลสินค้าสำเร็จ')
   @Patch(':id')
   @UseInterceptors(FilesInterceptor('images', 5))
   async updateProduct(
@@ -48,5 +50,11 @@ export class ProductController {
     @UploadedFiles() files: Express.Multer.File[], // อาจจะมีหรือไม่มีไฟล์ส่งมาก็ได้
   ) {
     return await this.produceService.update(id, updateProductDto, files);
+  }
+
+  @ResponseMessage('ลบข้อมูลสินค้าเรียบร้อยแล้ว')
+  @Delete(':id')
+  async removeProduct(@Param('id') id: string) {
+    return await this.produceService.remove(id);
   }
 }

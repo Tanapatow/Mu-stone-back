@@ -184,16 +184,7 @@ export class ProductService {
     files?: Express.Multer.File[],
   ) {
     try {
-      const product = await this.prisma.product.findUnique({
-        where: { id: id },
-      });
-
-      if (!product) {
-        throw new NotFoundException({
-          message: `ไม่พบสินค้า ID: ${id} ที่ต้องการแก้ไข`,
-          code: 'PRODUCT_NOT_FOUND',
-        });
-      }
+      await this.findById(id);
 
       // 2. เตรียมตัวแปรสำหรับเก็บข้อมูลรูปภาพใหม่ (ถ้ามี)
       let imageUpdateData:
@@ -239,7 +230,6 @@ export class ProductService {
       });
 
       return {
-        message: 'อัปเดตข้อมูลสินค้าสำเร็จ',
         data: updatedProduct,
       };
     } catch (error) {
@@ -249,6 +239,31 @@ export class ProductService {
       throw new InternalServerErrorException({
         message: 'เกิดข้อผิดพลาดในการอัปเดตข้อมูลสินค้า',
         code: 'PRODUCT_UPDATE_FAILED',
+      });
+    }
+  }
+
+  //Delete////
+  async remove(id: string) {
+    try {
+      // 1. เช็คก่อนว่ามีสินค้านี้อยู่จริงไหม (กันคนยิง ID มั่วๆ มาลบ)
+      await this.findById(id);
+
+      // 2. สั่งลบสินค้าจาก Database
+      await this.prisma.product.update({
+        where: { id: id },
+        data: { isActive: false },
+      });
+
+      // 3. ส่งคำตอบกลับไปว่าลบสำเร็จ
+      return;
+    } catch (error) {
+      if (error instanceof NotFoundException) throw error;
+
+      console.error(`Error deleting product ID ${id}:`, error);
+      throw new InternalServerErrorException({
+        message: 'เกิดข้อผิดพลาดในการลบข้อมูลสินค้า',
+        code: 'PRODUCT_DELETE_FAILED',
       });
     }
   }
