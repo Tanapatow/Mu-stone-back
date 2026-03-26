@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Param,
+  Patch,
   Post,
   Query,
   UploadedFiles,
@@ -13,6 +14,7 @@ import { ResponseMessage } from 'src/common/decorators/message-response.decorato
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { CreateProductDto } from './dtos/create-product.dto';
 import { GetAllProductsDto } from './dtos/get-all-product.dto';
+import { UpdateProductDto } from './dtos/update-product.dto';
 
 @Controller('products')
 export class ProductController {
@@ -36,5 +38,15 @@ export class ProductController {
   @Get(':id')
   async getProductById(@Param('id') id: string) {
     return await this.produceService.findById(id);
+  }
+
+  @Patch(':id')
+  @UseInterceptors(FilesInterceptor('images', 5))
+  async updateProduct(
+    @Param('id') id: string,
+    @Body() updateProductDto: UpdateProductDto,
+    @UploadedFiles() files: Express.Multer.File[], // อาจจะมีหรือไม่มีไฟล์ส่งมาก็ได้
+  ) {
+    return await this.produceService.update(id, updateProductDto, files);
   }
 }

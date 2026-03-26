@@ -9,6 +9,7 @@ import { CloudinaryService } from 'src/shared/upload/cloudinary.service';
 import { CreateProductDto } from './dtos/create-product.dto';
 import { GetAllProductsDto } from './dtos/get-all-product.dto';
 import { Prisma } from 'src/database/generated/prisma/client';
+import { UpdateProductDto } from './dtos/update-product.dto';
 
 @Injectable()
 export class ProductService {
@@ -85,12 +86,10 @@ export class ProductService {
       const skip = (page - 1) * limit;
       const take = limit;
 
-      // 🛡️ ประกาศ Type ชัดเจน (VS Code จะช่วยเช็คคำผิดให้)
       const whereCondition: Prisma.ProductWhereInput = {
-        isActive: true, // ดึงเฉพาะสินค้าที่ยังเปิดขาย
+        isActive: true,
       };
 
-      // 🔍 ถ้ามีการค้นหา
       if (search) {
         whereCondition.OR = [
           { name: { contains: search, mode: 'insensitive' } },
@@ -102,7 +101,6 @@ export class ProductService {
         whereCondition.stoneType = stoneType;
       }
 
-      // ⚡ ยิง Database พร้อมกัน 2 คำสั่งเพื่อความรวดเร็ว
       const [products, totalCount] = await Promise.all([
         this.prisma.product.findMany({
           where: whereCondition,
@@ -113,7 +111,7 @@ export class ProductService {
           },
           include: {
             images: {
-              orderBy: { displayOrder: 'asc' }, // เอารูปหน้าปกขึ้นก่อนเสมอ
+              orderBy: { displayOrder: 'asc' },
             },
           },
         }),
@@ -124,7 +122,6 @@ export class ProductService {
 
       const totalPages = Math.ceil(totalCount / limit);
 
-      // 📦 ส่งข้อมูลกลับไปแบบมีมาตรฐาน
       return {
         data: products,
         meta: {
@@ -145,6 +142,8 @@ export class ProductService {
       });
     }
   }
+
+  //findById///////
 
   async findById(id: string) {
     try {
@@ -173,6 +172,83 @@ export class ProductService {
       throw new InternalServerErrorException({
         message: 'เกิดข้อผิดพลาดในการดึงข้อมูลสินค้า',
         code: 'PRODUCT_FETCH_FAILED',
+      });
+    }
+  }
+
+  //Update////////
+
+  async update(
+    id: string,
+    updateProductDto: UpdateProductDto,
+    files?: Express.Multer.File[],
+  ) {
+    try {
+      const product = await this.prisma.product.findUnique({
+        where: { id: id },
+      });
+
+      if (!product) {
+        throw new NotFoundException({
+          message: `ไม่พบสินค้า ID: ${id} ที่ต้องการแก้ไข`,
+          code: 'PRODUCT_NOT_FOUND',
+        });
+      }
+
+      // 2. เตรียมตัวแปรสำหรับเก็บข้อมูลรูปภาพใหม่ (ถ้ามี)
+      let imageUpdateData:
+        | Prisma.ProductImageUpdateManyWithoutProductNestedInput
+        | undefined = undefined;
+
+      // 3. ถ้า User แนบรูปภาพชุดใหม่มาด้วย
+      if (files && files.length > 0) {
+        // อัปโหลดขึ้น Cloudinary
+        const uploadPromises = files.map((file) =>
+          this.cloudinary.upload(file, 'mu_stone/products'),
+        );
+        const cloudinaryResults = await Promise.all(uploadPromises);
+        const uploadedImageUrls = cloudinaryResults.map(
+          (result) => result.secure_url,
+        );
+
+        // จัดฟอร์แมตรูปใหม่
+        const newImageRecords = uploadedImageUrls.map((url, index) => ({
+          url: url,
+          isMain: index === 0,
+          displayOrder: index + 1,
+        }));
+
+        imageUpdateData = {
+          deleteMany: {}, // ลบของเก่าทั้งหมดที่ผูกกับ Product นี้
+          create: newImageRecords, // ใส่ของใหม่เข้าไป
+        };
+      }
+
+      // 4. บันทึกข้อมูลทั้งหมดลง Database
+      const updatedProduct = await this.prisma.product.update({
+        where: { id: id },
+        data: {
+          ...updateProductDto,
+          ...(imageUpdateData && { images: imageUpdateData }),
+        },
+        include: {
+          images: {
+            orderBy: { displayOrder: 'asc' },
+          },
+        },
+      });
+
+      return {
+        message: 'อัปเดตข้อมูลสินค้าสำเร็จ',
+        data: updatedProduct,
+      };
+    } catch (error) {
+      if (error instanceof NotFoundException) throw error;
+
+      console.error(`Error updating product ID ${id}:`, error);
+      throw new InternalServerErrorException({
+        message: 'เกิดข้อผิดพลาดในการอัปเดตข้อมูลสินค้า',
+        code: 'PRODUCT_UPDATE_FAILED',
       });
     }
   }
