@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Param,
   Post,
   Query,
   UploadedFiles,
@@ -30,5 +31,10 @@ export class ProductController {
   @Get()
   async getAllProduct(@Query() filter: GetAllProductsDto) {
     return await this.produceService.findAll(filter);
+  }
+
+  @Get(':id')
+  async getProductById(@Param('id') id: string) {
+    return await this.produceService.findById(id);
   }
 }

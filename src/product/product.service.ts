@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Injectable,
   InternalServerErrorException,
+  NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/database/prisma.service';
 import { CloudinaryService } from 'src/shared/upload/cloudinary.service';
@@ -138,6 +139,37 @@ export class ProductService {
       };
     } catch (error) {
       console.error('Error fetching products:', error);
+      throw new InternalServerErrorException({
+        message: 'เกิดข้อผิดพลาดในการดึงข้อมูลสินค้า',
+        code: 'PRODUCT_FETCH_FAILED',
+      });
+    }
+  }
+
+  async findById(id: string) {
+    try {
+      const product = await this.prisma.product.findUnique({
+        where: { id: id },
+        include: {
+          images: {
+            orderBy: { displayOrder: 'asc' },
+          },
+        },
+      });
+
+      if (!product) {
+        throw new NotFoundException({
+          message: `ไม่พบสินค้า ID: ${id} ในระบบ`,
+          code: 'PRODUCT_NOT_FOUND',
+        });
+      }
+      return {
+        data: product,
+      };
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
       throw new InternalServerErrorException({
         message: 'เกิดข้อผิดพลาดในการดึงข้อมูลสินค้า',
         code: 'PRODUCT_FETCH_FAILED',
