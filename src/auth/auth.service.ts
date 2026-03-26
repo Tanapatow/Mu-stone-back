@@ -43,6 +43,7 @@ export class AuthService {
     const accessToken = await this.authTokenService.sign({
       sub: user.id,
       email: user.email,
+      role: user.role,
     });
 
     const { password, ...rest } = user;

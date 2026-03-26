@@ -7,6 +7,7 @@ import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
 import { SecurityModule } from './shared/security/security.module';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
+import { RoleGuard } from './auth/guards/role.guard';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
   providers: [
     { provide: APP_GUARD, useClass: AuthGuard },
     { provide: APP_INTERCEPTOR, useClass: TransformInterceptor },
+    { provide: APP_GUARD, useClass: RoleGuard },
   ],
 })
 export class AppModule {}
