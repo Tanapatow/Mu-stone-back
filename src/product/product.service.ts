@@ -267,4 +267,15 @@ export class ProductService {
       });
     }
   }
+
+  async deleteStock(id: string, quantity: number) {
+    return this.prisma.product.update({
+      where: { id: id },
+      data: {
+        stock: {
+          decrement: quantity, // 👈 ท่าไม้ตาย! ลบออกตามจำนวนที่ส่งมา
+        },
+      },
+    });
+  }
 }
