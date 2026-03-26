@@ -8,6 +8,8 @@ import { UserModule } from './user/user.module';
 import { SecurityModule } from './shared/security/security.module';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { RoleGuard } from './auth/guards/role.guard';
+import { ProductModule } from './product/product.module';
+import { UploadModule } from './shared/upload/upload.module';
 
 @Module({
   imports: [
@@ -16,6 +18,8 @@ import { RoleGuard } from './auth/guards/role.guard';
     AuthModule,
     UserModule,
     SecurityModule,
+    ProductModule,
+    UploadModule,
   ],
   controllers: [],
   providers: [
