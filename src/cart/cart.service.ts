@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from 'src/database/prisma.service';
 import { AddToCartDto } from './dtos/add-to-cart.dto';
+import { UpdateCartDto } from './dtos/update-cart.dto';
 
 @Injectable()
 export class CartService {
@@ -142,6 +143,117 @@ export class CartService {
       throw new InternalServerErrorException({
         message: 'เกิดข้อผิดพลาดในการดึงข้อมูลตะกร้าสินค้า',
         code: 'GET_CART_FAILED',
+      });
+    }
+  }
+  // ===========================================================================
+  //  3. อัปเดตจำนวนสินค้า (Update Quantity)
+  // ===========================================================================
+  async updateQuantity(
+    userId: string,
+    productId: string,
+    { quantity }: UpdateCartDto,
+  ) {
+    try {
+      // ถ้าส่งจำนวนมาเป็น 0 หรือติดลบ ให้เตะไปใช้ฟังก์ชันลบทิ้งแทนเลย
+      if (quantity <= 0) {
+        return this.removeItem(userId, productId);
+      }
+
+      // หาตะกร้า
+      const cart = await this.prisma.cart.findUnique({ where: { userId } });
+      if (!cart) {
+        throw new NotFoundException({
+          message: 'ไม่พบตะกร้าสินค้าของคุณ',
+          code: 'CART_NOT_FOUND',
+        });
+      }
+
+      // เช็คว่ามีของชิ้นนี้ในตะกร้าไหม
+      const cartItem = await this.prisma.cartItem.findFirst({
+        where: { cartId: cart.id, productId: productId },
+      });
+
+      if (!cartItem) {
+        throw new NotFoundException({
+          message: 'ไม่พบสินค้านี้ในตะกร้า',
+          code: 'CART_ITEM_NOT_FOUND',
+        });
+      }
+
+      // เช็คสต๊อกสินค้า
+      const product = await this.prisma.product.findUnique({
+        where: { id: productId },
+      });
+      if (!product) {
+        throw new NotFoundException({
+          message: 'ไม่พบข้อมูลสินค้าในระบบ',
+          code: 'PRODUCT_NOT_FOUND',
+        });
+      }
+
+      if (product.stock < quantity) {
+        throw new BadRequestException({
+          message: `ขออภัย สินค้ามีไม่พอ (สต๊อกเหลือ ${product.stock} ชิ้น)`,
+          code: 'INSUFFICIENT_STOCK',
+        });
+      }
+
+      // อัปเดตจำนวนเป็นค่าใหม่
+      await this.prisma.cartItem.update({
+        where: { id: cartItem.id },
+        data: { quantity: quantity },
+      });
+
+      return await this.getCart(userId);
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new InternalServerErrorException({
+        message: 'เกิดข้อผิดพลาดภายในระบบ ไม่สามารถอัปเดตจำนวนสินค้าได้',
+        code: 'UPDATE_QUANTITY_FAILED',
+      });
+    }
+  }
+
+  // ===========================================================================
+  //  4. ลบสินค้าออกจากตะกร้า (Remove Item)
+  // ===========================================================================
+  async removeItem(userId: string, productId: string) {
+    try {
+      const cart = await this.prisma.cart.findUnique({ where: { userId } });
+      if (!cart) {
+        throw new NotFoundException({
+          message: 'ไม่พบตะกร้าสินค้าของคุณ',
+          code: 'CART_NOT_FOUND',
+        });
+      }
+
+      const cartItem = await this.prisma.cartItem.findFirst({
+        where: { cartId: cart.id, productId: productId },
+      });
+
+      if (!cartItem) {
+        throw new NotFoundException({
+          message: 'ไม่พบสินค้านี้ในตะกร้า',
+          code: 'CART_ITEM_NOT_FOUND',
+        });
+      }
+
+      // ลบรายการทิ้ง
+      await this.prisma.cartItem.delete({
+        where: { id: cartItem.id },
+      });
+
+      return await this.getCart(userId);
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new InternalServerErrorException({
+        message: 'เกิดข้อผิดพลาดภายในระบบ ไม่สามารถลบสินค้าออกจากตะกร้าได้',
+        code: 'REMOVE_ITEM_FAILED',
       });
     }
   }
