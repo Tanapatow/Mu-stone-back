@@ -13,16 +13,17 @@ import { Public } from './decorators/public.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
 import type { JwtPayload } from './types/jwt-payload.type';
 import { UserWithoutPassword } from 'src/user/types/user.type';
+import { ResponseMessage } from 'src/common/decorators/message-response.decorator';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @ResponseMessage('Account created successfully')
   @Public()
   @Post('register')
-  async register(@Body() createUserDto: CreateUserDto): Promise<string> {
+  async register(@Body() createUserDto: CreateUserDto): Promise<void> {
     await this.authService.register(createUserDto);
-    return 'Account created successfully';
   }
 
   @Public()
