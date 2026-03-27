@@ -10,6 +10,7 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
 import { RoleGuard } from './auth/guards/role.guard';
 import { ProductModule } from './product/product.module';
 import { UploadModule } from './shared/upload/upload.module';
+import { CartModule } from './cart/cart.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { UploadModule } from './shared/upload/upload.module';
     SecurityModule,
     ProductModule,
     UploadModule,
+    CartModule,
   ],
   controllers: [],
   providers: [
