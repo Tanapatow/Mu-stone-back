@@ -1,6 +1,8 @@
 import {
   ConflictException,
+  HttpException,
   Injectable,
+  InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
 import { CreateUserDto } from './dtos/create-user.dto';
@@ -9,6 +11,7 @@ import { BcryptService } from 'src/shared/security/services/bcrypt.service';
 import { PrismaService } from 'src/database/prisma.service';
 import { PrismaClientKnownRequestError } from 'src/database/generated/prisma/internal/prismaNamespace';
 import { UserWithoutPassword } from './types/user.type';
+import { AddressDto } from './dtos/address.dto';
 
 @Injectable()
 export class UserService {
@@ -58,5 +61,36 @@ export class UserService {
       });
 
     return user;
+  }
+
+  //  เพิ่มหรือแก้ไขที่อยู่จัดส่ง (Upsert Address)
+
+  async upsertAddress(userId: string, addressDto: AddressDto) {
+    try {
+      await this.findById(userId);
+
+      const address = await this.prisma.address.upsert({
+        where: { userId: userId },
+        update: { ...addressDto },
+        create: {
+          ...addressDto,
+          userId: userId,
+        },
+      });
+
+      return address;
+    } catch (error) {
+      console.error(
+        `[UserService.upsertAddress] Error for user ${userId}:`,
+        error,
+      );
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new InternalServerErrorException({
+        message: 'ไม่สามารถบันทึกที่อยู่ได้ โปรดลองใหม่อีกครั้ง',
+        code: 'UPSERT_ADDRESS_FAILED',
+      });
+    }
   }
 }
