@@ -11,6 +11,8 @@ import { RoleGuard } from './auth/guards/role.guard';
 import { ProductModule } from './product/product.module';
 import { UploadModule } from './shared/upload/upload.module';
 import { CartModule } from './cart/cart.module';
+import { FortuneModule } from './fortune/fortune.module';
+import { GenaiModule } from './shared/genai/genai.module';
 
 @Module({
   imports: [
@@ -22,6 +24,8 @@ import { CartModule } from './cart/cart.module';
     ProductModule,
     UploadModule,
     CartModule,
+    FortuneModule,
+    GenaiModule,
   ],
   controllers: [],
   providers: [

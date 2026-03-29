@@ -99,9 +99,9 @@ model Product {
   createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt   DateTime       @updatedAt @map("updated_at") @db.Timestamptz()
 
-  orderItems  OrderItem[]
-  cartItems   CartItem[]
-  fortuneLogs FortuneLog[]
+  orderItems        OrderItem[]
+  cartItems         CartItem[]
+  recommendedInLogs FortuneLog[] @relation("RecommendedProducts")
 
   @@map("products")
 }
@@ -199,8 +199,7 @@ model FortuneLog {
   cards          TarotCard[]
   predictionText String      @map("prediction_text") @db.Text
 
-  recommendedProductId String?  @map("recommended_product_id")
-  product              Product? @relation(fields: [recommendedProductId], references: [id])
+  recommendedProducts Product[] @relation("RecommendedProducts")
 
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
 
