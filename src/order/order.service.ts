@@ -10,9 +10,8 @@ import { PrismaService } from 'src/database/prisma.service';
 export class OrderService {
   constructor(private readonly prisma: PrismaService) {}
 
-  // ===========================================================================
   //  Checkout: เปลี่ยนของในตะกร้าให้กลายเป็นใบสั่งซื้อ (Order)
-  // ===========================================================================
+
   async checkout(userId: string) {
     try {
       // 1. ดึงข้อมูล User (เพื่อเอาที่อยู่) และดึง Cart (เพื่อเอาของในตะกร้า)
@@ -65,9 +64,6 @@ export class OrderService {
       const addr = user.address;
       const addressSnapshot = `ผู้รับ: ${addr.receiverName} โทร: ${addr.phone}\nที่อยู่: ${addr.addressLine1} ต.${addr.subDistrict} อ.${addr.district} จ.${addr.province} ${addr.postalCode}`;
 
-      // =======================================================================
-      // 🚨 เริ่ม TRANSACTION: ทำทุกอย่างพร้อมกัน ถ้าพังตรงไหน ให้ยกเลิกทั้งหมด 🚨
-      // =======================================================================
       const order = await this.prisma.$transaction(async (prisma) => {
         // 6.1 สร้างหัวบิล (Order)
         const newOrder = await prisma.order.create({
