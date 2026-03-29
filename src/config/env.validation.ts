@@ -11,6 +11,8 @@ const envSchema = z.object({
   CLOUDINARY_API_KEY: z.string().min(1),
   CLOUDINARY_API_SECRET: z.string().min(1),
   GEMINI_API_KEY: z.string().min(1),
+  STRIPE_PUBLIC_KEY: z.string().min(1),
+  STRIPE_SECRET_KEY: z.string().min(1),
 });
 
 export type EnvConfigType = z.infer<typeof envSchema>;
