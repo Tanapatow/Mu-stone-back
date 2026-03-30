@@ -14,6 +14,7 @@ const envSchema = z.object({
   GEMINI_API_KEY: z.string().min(1),
   STRIPE_PUBLIC_KEY: z.string().min(1),
   STRIPE_SECRET_KEY: z.string().min(1),
+  STRIPE_WEBHOOK_SECRET: z.string().min(1),
 });
 
 export type EnvConfigType = z.infer<typeof envSchema>;
