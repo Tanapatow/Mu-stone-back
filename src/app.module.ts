@@ -13,6 +13,8 @@ import { UploadModule } from './shared/upload/upload.module';
 import { CartModule } from './cart/cart.module';
 import { FortuneModule } from './fortune/fortune.module';
 import { GenaiModule } from './shared/genai/genai.module';
+import { OrderModule } from './order/order.module';
+import { StripeModule } from './stripe/stripe.module';
 
 @Module({
   imports: [
@@ -26,6 +28,8 @@ import { GenaiModule } from './shared/genai/genai.module';
     CartModule,
     FortuneModule,
     GenaiModule,
+    OrderModule,
+    StripeModule,
   ],
   controllers: [],
   providers: [
