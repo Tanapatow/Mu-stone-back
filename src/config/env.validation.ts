@@ -4,6 +4,7 @@ import z from 'zod';
 const envSchema = z.object({
   PORT: z.coerce.number().int().min(0).max(65535),
   DATABASE_URL: z.url(),
+  FRONTEND_URL: z.url(),
   SALT_ROUNDS: z.coerce.number().int().min(10),
   JWT_SECRET: z.string().min(32),
   JWT_EXPIRES_IN: z.coerce.number().int().positive(),
