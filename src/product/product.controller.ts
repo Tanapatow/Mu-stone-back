@@ -16,6 +16,7 @@ import { FilesInterceptor } from '@nestjs/platform-express';
 import { CreateProductDto } from './dtos/create-product.dto';
 import { GetAllProductsDto } from './dtos/get-all-product.dto';
 import { UpdateProductDto } from './dtos/update-product.dto';
+import { Public } from 'src/auth/decorators/public.decorator';
 
 @Controller('products')
 export class ProductController {
@@ -31,11 +32,13 @@ export class ProductController {
     return await this.produceService.create(createProductDto, files);
   }
 
+  @Public()
   @Get()
   async getAllProduct(@Query() filter: GetAllProductsDto) {
     return await this.produceService.findAll(filter);
   }
 
+  @Public()
   @Get(':id')
   async getProductById(@Param('id') id: string) {
     return await this.produceService.findById(id);

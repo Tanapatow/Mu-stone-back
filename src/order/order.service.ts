@@ -5,10 +5,14 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/database/prisma.service';
+import { StripeService } from 'src/stripe/stripe.service';
 
 @Injectable()
 export class OrderService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly stripeService: StripeService,
+  ) {}
 
   //  Checkout: เปลี่ยนของในตะกร้าให้กลายเป็นใบสั่งซื้อ (Order)
 
@@ -102,7 +106,7 @@ export class OrderService {
       });
 
       // 7. ดึงข้อมูลบิลที่สมบูรณ์แบบส่งกลับไปให้ Frontend
-      return await this.prisma.order.findUnique({
+      const completeOrder = await this.prisma.order.findUniqueOrThrow({
         where: { id: order.id },
         include: {
           items: {
@@ -110,6 +114,22 @@ export class OrderService {
           },
         },
       });
+
+      // 8. โยนข้อมูลบิลไปให้ StripeService เพื่อสร้างหน้าต่างรูดบัตร
+      const stripeSession =
+        await this.stripeService.createCheckoutSession(completeOrder);
+
+      // 9. เอา Session ID ที่ Stripe คืนมา กลับไปเซฟอัปเดตลงใน Database ของบิลใบนี้
+      await this.prisma.order.update({
+        where: { id: completeOrder.id },
+        data: { stripeSessionId: stripeSession.id },
+      });
+
+      // 10. ส่งผลลัพธ์กลับไปให้ Frontend (เปลี่ยนจากการคืนค่า Order ทั้งก้อน มาเป็นโครงสร้างที่ใช้งานง่ายขึ้น)
+      return {
+        orderId: completeOrder.id,
+        paymentUrl: stripeSession.url, // 👈 Frontend จะเอาลิงก์นี้ไปให้ลูกค้ากดเพื่อจ่ายเงิน
+      };
     } catch (error) {
       if (error instanceof HttpException) {
         throw error;
