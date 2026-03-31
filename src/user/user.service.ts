@@ -7,13 +7,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { CreateUserDto } from './dtos/create-user.dto';
-import { User } from 'src/database/generated/prisma/client';
+import { Prisma, User } from 'src/database/generated/prisma/client';
 import { BcryptService } from 'src/shared/security/services/bcrypt.service';
 import { PrismaService } from 'src/database/prisma.service';
 import { PrismaClientKnownRequestError } from 'src/database/generated/prisma/internal/prismaNamespace';
 import { UserWithoutPassword } from './types/user.type';
 import { AddressDto } from './dtos/address.dto';
 import { UpdateUserDto } from './dtos/update-user-dto';
+import { GetAllUserDto } from './dtos/get-all-user.dto';
 
 @Injectable()
 export class UserService {
@@ -172,16 +173,50 @@ export class UserService {
     }
   }
 
-  async getAlluser() {
+  async getAllUsers(getAllUserDto: GetAllUserDto) {
     try {
-      const user = await this.prisma.user.findMany({
-        orderBy: { createdAt: 'desc' },
-        omit: { password: true },
-      });
+      const { search, page = 1, limit = 10 } = getAllUserDto;
+      // 1. สร้างเงื่อนไขการค้นหา (ถ้ามี search ส่งมา)
+      // ค้นหาจากชื่อ, นามสกุล หรือ อีเมล แบบไม่สนตัวพิมพ์เล็ก-ใหญ่ (insensitive)
+      const where: Prisma.UserWhereInput = search
+        ? {
+            OR: [
+              { firstName: { contains: search, mode: 'insensitive' } },
+              { lastName: { contains: search, mode: 'insensitive' } },
+              { email: { contains: search, mode: 'insensitive' } },
+            ],
+          }
+        : {};
 
-      return user;
-    } catch (err) {
-      console.error('[UserService.getAllUsers] Error:', err);
+      // 2. รันคำสั่งหาจำนวนทั้งหมด และดึงข้อมูลจริงไปพร้อมกัน (ใช้ Promise.all เพื่อความเร็ว)
+      const [totalItems, users] = await Promise.all([
+        this.prisma.user.count({ where }),
+        this.prisma.user.findMany({
+          where,
+          skip: (page - 1) * limit, // คำนวณจุดเริ่มต้น
+          take: limit, // จำนวนที่ต้องการดึง
+          orderBy: { createdAt: 'desc' },
+          omit: { password: true }, // ไม่เอา password (Prisma v5.x)
+        }),
+      ]);
+
+      // 3. คำนวณข้อมูลสำหรับการทำ Pagination ให้หน้าบ้าน
+      const lastPage = Math.ceil(totalItems / limit);
+
+      return {
+        users,
+        meta: {
+          totalItems,
+          itemCount: users.length,
+          itemsPerPage: limit,
+          totalPages: lastPage,
+          currentPage: page,
+          hasNextPage: page < lastPage,
+          hasPreviousPage: page > 1,
+        },
+      };
+    } catch (error) {
+      console.error('[UserService.getAllUsers] Error:', error);
       throw new InternalServerErrorException({
         message: 'ไม่สามารถดึงข้อมูลผู้ใช้งานได้ในขณะนี้',
         code: 'FETCH_USERS_FAILED',
