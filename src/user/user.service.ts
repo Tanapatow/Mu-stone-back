@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  ForbiddenException,
   HttpException,
   Injectable,
   InternalServerErrorException,
@@ -122,6 +123,51 @@ export class UserService {
       throw new InternalServerErrorException({
         message: 'ไม่สามารถอัปเดตข้อมูลโปรไฟล์ได้ โปรดลองใหม่อีกครั้ง',
         code: 'UPDATE_PROFILE_FAILED',
+      });
+    }
+  }
+
+  async toggleUserStatus(targetUserId: string, isActive: boolean) {
+    // 1. เช็คก่อนว่ามี User นี้ในระบบไหม
+    const user = await this.prisma.user.findUnique({
+      where: { id: targetUserId },
+    });
+
+    if (!user) {
+      throw new NotFoundException({
+        message: 'ไม่พบข้อมูลผู้ใช้งานที่ต้องการดำเนินการ',
+        code: 'USER_NOT_FOUND',
+      });
+    }
+
+    if (user.role === 'ADMIN') {
+      throw new ForbiddenException({
+        message:
+          'ไม่อนุญาตให้ระงับการใช้งานบัญชีผู้ดูแลระบบ (ADMIN) ด้วยกันเอง',
+        code: 'CANNOT_BAN_ADMIN',
+      });
+    }
+
+    try {
+      // 3. ทำการอัปเดตสถานะ
+      const updatedStatusUser = await this.prisma.user.update({
+        where: { id: targetUserId },
+        data: { isActive: isActive }, // true = ใช้งานได้ปกติ, false = โดนแบน
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          isActive: true, // ส่งกลับไปเพื่อให้หน้าบ้านอัปเดต UI ว่าแบนสำเร็จแล้ว
+        },
+      });
+
+      return updatedStatusUser;
+    } catch (error) {
+      console.error('[UserService.toggleUserStatus] Error:', error);
+      throw new InternalServerErrorException({
+        message: 'เปลี่ยนสถานะผู้ใช้งานไม่สำเร็จ โปรดลองใหม่อีกครั้ง',
+        code: 'TOGGLE_STATUS_FAILED',
       });
     }
   }
