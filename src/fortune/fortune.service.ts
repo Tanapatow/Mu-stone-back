@@ -25,7 +25,7 @@ export class FortuneService {
       const shuffled = allCards.sort(() => 0.5 - Math.random());
       const selectedIds = shuffled.slice(0, 3).map((card) => card.id);
 
-      const [drawnCards, activeProducts] = await Promise.all([
+      const [rawDrawnCards, activeProducts] = await Promise.all([
         this.prisma.tarotCard.findMany({ where: { id: { in: selectedIds } } }),
         this.prisma.product.findMany({
           where: { isActive: true },
@@ -33,9 +33,15 @@ export class FortuneService {
         }),
       ]);
 
+      // 2. 🌟 เพิ่มบรรทัดนี้: แมพลำดับไพ่ให้กลับมาตรงกับที่เราสุ่ม (selectedIds)
+      const drawnCards = selectedIds.map(
+        (id) => rawDrawnCards.find((card) => card.id === id)!,
+      );
+
       const cardInfo = drawnCards
         .map(
-          (c, index) => `ใบที่ ${index + 1}: ${c.nameThai} (${c.baseMeaning})`,
+          (c, index) =>
+            `ใบที่ ${index + 1}: ${c?.nameThai} (${c?.baseMeaning})`,
         )
         .join('\n');
 
@@ -113,11 +119,29 @@ export class FortuneService {
         },
         include: {
           cards: true,
-          recommendedProducts: true,
+          recommendedProducts: {
+            include: {
+              images: { where: { isMain: true }, select: { url: true } },
+            },
+          },
         },
       });
 
-      return fortuneLog;
+      const formattedResponse = {
+        ...fortuneLog,
+        recommendedProducts: fortuneLog.recommendedProducts.map((product) => {
+          const mainImageUrl = product.images?.[0]?.url || null;
+
+          const { images, ...restProduct } = product;
+
+          return {
+            ...restProduct,
+            imageUrl: mainImageUrl,
+          };
+        }),
+      };
+
+      return formattedResponse;
     } catch (error) {
       console.error('[FortuneService.drawAndPredict] Error:', error);
       if (error instanceof InternalServerErrorException) {

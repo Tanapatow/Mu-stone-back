@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  ForbiddenException,
   HttpException,
   Injectable,
   InternalServerErrorException,
@@ -12,6 +13,7 @@ import { PrismaService } from 'src/database/prisma.service';
 import { PrismaClientKnownRequestError } from 'src/database/generated/prisma/internal/prismaNamespace';
 import { UserWithoutPassword } from './types/user.type';
 import { AddressDto } from './dtos/address.dto';
+import { UpdateUserDto } from './dtos/update-user-dto';
 
 @Injectable()
 export class UserService {
@@ -90,6 +92,99 @@ export class UserService {
       throw new InternalServerErrorException({
         message: 'ไม่สามารถบันทึกที่อยู่ได้ โปรดลองใหม่อีกครั้ง',
         code: 'UPSERT_ADDRESS_FAILED',
+      });
+    }
+  }
+
+  async updateProfile(userId: string, updateUserDto: UpdateUserDto) {
+    try {
+      const updatedUser = await this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          ...updateUserDto,
+          dob: updateUserDto.dob ? new Date(updateUserDto.dob) : undefined,
+        },
+        // ✨ กฎเหล็ก Frontend-First: เลือกส่งกลับไปเฉพาะฟิลด์ที่ปลอดภัยและจำเป็น
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          dob: true,
+          gender: true,
+          isActive: true,
+          role: true,
+        },
+      });
+
+      // คืนค่ากลับไปแบบแบนๆ คลีนๆ ให้ Frontend เอาไปใช้ต่อได้ทันที
+      return updatedUser;
+    } catch {
+      throw new InternalServerErrorException({
+        message: 'ไม่สามารถอัปเดตข้อมูลโปรไฟล์ได้ โปรดลองใหม่อีกครั้ง',
+        code: 'UPDATE_PROFILE_FAILED',
+      });
+    }
+  }
+
+  async toggleUserStatus(targetUserId: string, isActive: boolean) {
+    // 1. เช็คก่อนว่ามี User นี้ในระบบไหม
+    const user = await this.prisma.user.findUnique({
+      where: { id: targetUserId },
+    });
+
+    if (!user) {
+      throw new NotFoundException({
+        message: 'ไม่พบข้อมูลผู้ใช้งานที่ต้องการดำเนินการ',
+        code: 'USER_NOT_FOUND',
+      });
+    }
+
+    if (user.role === 'ADMIN') {
+      throw new ForbiddenException({
+        message:
+          'ไม่อนุญาตให้ระงับการใช้งานบัญชีผู้ดูแลระบบ (ADMIN) ด้วยกันเอง',
+        code: 'CANNOT_BAN_ADMIN',
+      });
+    }
+
+    try {
+      // 3. ทำการอัปเดตสถานะ
+      const updatedStatusUser = await this.prisma.user.update({
+        where: { id: targetUserId },
+        data: { isActive: isActive }, // true = ใช้งานได้ปกติ, false = โดนแบน
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          isActive: true, // ส่งกลับไปเพื่อให้หน้าบ้านอัปเดต UI ว่าแบนสำเร็จแล้ว
+        },
+      });
+
+      return updatedStatusUser;
+    } catch (error) {
+      console.error('[UserService.toggleUserStatus] Error:', error);
+      throw new InternalServerErrorException({
+        message: 'เปลี่ยนสถานะผู้ใช้งานไม่สำเร็จ โปรดลองใหม่อีกครั้ง',
+        code: 'TOGGLE_STATUS_FAILED',
+      });
+    }
+  }
+
+  async getAlluser() {
+    try {
+      const user = await this.prisma.user.findMany({
+        orderBy: { createdAt: 'desc' },
+        omit: { password: true },
+      });
+
+      return user;
+    } catch (err) {
+      console.error('[UserService.getAllUsers] Error:', err);
+      throw new InternalServerErrorException({
+        message: 'ไม่สามารถดึงข้อมูลผู้ใช้งานได้ในขณะนี้',
+        code: 'FETCH_USERS_FAILED',
       });
     }
   }
