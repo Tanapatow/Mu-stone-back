@@ -171,4 +171,21 @@ export class UserService {
       });
     }
   }
+
+  async getAlluser() {
+    try {
+      const user = await this.prisma.user.findMany({
+        orderBy: { createdAt: 'desc' },
+        omit: { password: true },
+      });
+
+      return user;
+    } catch (err) {
+      console.error('[UserService.getAllUsers] Error:', err);
+      throw new InternalServerErrorException({
+        message: 'ไม่สามารถดึงข้อมูลผู้ใช้งานได้ในขณะนี้',
+        code: 'FETCH_USERS_FAILED',
+      });
+    }
+  }
 }

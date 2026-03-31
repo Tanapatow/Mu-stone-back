@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   Param,
   ParseBoolPipe,
   Patch,
@@ -41,5 +42,11 @@ export class UserController {
     @Body('isActive', ParseBoolPipe) isActive: boolean,
   ) {
     return this.userService.toggleUserStatus(targetUserId, isActive);
+  }
+
+  @Roles('ADMIN')
+  @Get()
+  async getAllUser() {
+    return this.userService.getAlluser();
   }
 }
