@@ -6,6 +6,7 @@ import {
   ParseBoolPipe,
   Patch,
   Put,
+  Query,
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
@@ -13,6 +14,7 @@ import { AddressDto } from './dtos/address.dto';
 import { UpdateUserDto } from './dtos/update-user-dto';
 import { ResponseMessage } from 'src/common/decorators/message-response.decorator';
 import { Roles } from 'src/auth/decorators/role.decorator';
+import { GetAllUserDto } from './dtos/get-all-user.dto';
 
 @Controller('user')
 export class UserController {
@@ -46,7 +48,7 @@ export class UserController {
 
   @Roles('ADMIN')
   @Get()
-  async getAllUser() {
-    return this.userService.getAlluser();
+  async getAllUser(@Query() getAllUserDto: GetAllUserDto) {
+    return await this.userService.getAllUsers(getAllUserDto);
   }
 }
