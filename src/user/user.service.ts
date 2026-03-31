@@ -12,6 +12,7 @@ import { PrismaService } from 'src/database/prisma.service';
 import { PrismaClientKnownRequestError } from 'src/database/generated/prisma/internal/prismaNamespace';
 import { UserWithoutPassword } from './types/user.type';
 import { AddressDto } from './dtos/address.dto';
+import { UpdateUserDto } from './dtos/update-user-dto';
 
 @Injectable()
 export class UserService {
@@ -90,6 +91,37 @@ export class UserService {
       throw new InternalServerErrorException({
         message: 'ไม่สามารถบันทึกที่อยู่ได้ โปรดลองใหม่อีกครั้ง',
         code: 'UPSERT_ADDRESS_FAILED',
+      });
+    }
+  }
+
+  async updateProfile(userId: string, updateUserDto: UpdateUserDto) {
+    try {
+      const updatedUser = await this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          ...updateUserDto,
+          dob: updateUserDto.dob ? new Date(updateUserDto.dob) : undefined,
+        },
+        // ✨ กฎเหล็ก Frontend-First: เลือกส่งกลับไปเฉพาะฟิลด์ที่ปลอดภัยและจำเป็น
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          dob: true,
+          gender: true,
+          isActive: true,
+          role: true,
+        },
+      });
+
+      // คืนค่ากลับไปแบบแบนๆ คลีนๆ ให้ Frontend เอาไปใช้ต่อได้ทันที
+      return updatedUser;
+    } catch {
+      throw new InternalServerErrorException({
+        message: 'ไม่สามารถอัปเดตข้อมูลโปรไฟล์ได้ โปรดลองใหม่อีกครั้ง',
+        code: 'UPDATE_PROFILE_FAILED',
       });
     }
   }
