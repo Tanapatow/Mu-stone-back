@@ -3,9 +3,12 @@ import {
   HttpException,
   Injectable,
   InternalServerErrorException,
+  NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/database/prisma.service';
 import { StripeService } from 'src/stripe/stripe.service';
+import { GetAllOrderDto } from './dto/get-all-order.dto';
+import { Prisma } from 'src/database/generated/prisma/client';
 
 @Injectable()
 export class OrderService {
@@ -137,6 +140,183 @@ export class OrderService {
       throw new InternalServerErrorException({
         message: 'ระบบสั่งซื้อขัดข้อง โปรดลองใหม่อีกครั้ง',
         code: 'CHECKOUT_FAILED',
+      });
+    }
+  }
+
+  async getAllOrders({ limit = 10, page = 1, status }: GetAllOrderDto) {
+    try {
+      // ใช้ Prisma.OrderWhereInput เพื่อความปลอดภัยของ Type
+      const whereCondition: Prisma.OrderWhereInput = status
+        ? { status: status }
+        : {};
+
+      const [totalItems, orders] = await Promise.all([
+        this.prisma.order.count({ where: whereCondition }),
+        this.prisma.order.findMany({
+          where: whereCondition,
+          skip: (page - 1) * limit,
+          take: limit,
+          orderBy: { createdAt: 'desc' },
+          include: {
+            user: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
+            _count: {
+              select: { items: true },
+            },
+          },
+        }),
+      ]);
+
+      const lastPage = Math.ceil(totalItems / limit);
+
+      return {
+        orders,
+        meta: {
+          totalItems,
+          itemCount: orders.length,
+          itemsPerPage: limit,
+          totalPages: lastPage,
+          currentPage: page,
+          hasNextPage: page < lastPage,
+          hasPreviousPage: page > 1,
+        },
+      };
+    } catch (error) {
+      console.error('[OrderService.getAllOrders] Error:', error);
+      throw new InternalServerErrorException({
+        message: 'ไม่สามารถดึงข้อมูลคำสั่งซื้อทั้งหมดได้',
+        code: 'FETCH_ALL_ORDERS_FAILED',
+      });
+    }
+  }
+
+  // ========================================================================
+  // 🔍 2. ดึงรายละเอียดคำสั่งซื้อตาม ID (เจาะลึกราย Item)
+  // ========================================================================
+  async getOrderById(id: string) {
+    try {
+      const order = await this.prisma.order.findUnique({
+        where: { id },
+        include: {
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
+          },
+          items: {
+            include: {
+              product: {
+                select: {
+                  id: true,
+                  name: true,
+                  price: true,
+                  images: {
+                    where: { isMain: true },
+                    select: { url: true },
+                    take: 1,
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (!order) {
+        throw new NotFoundException({
+          message: `ไม่พบคำสั่งซื้อรหัส ${id}`,
+          code: 'ORDER_NOT_FOUND',
+        });
+      }
+
+      // ✨ ปรับโครงสร้างข้อมูล (Transform) ให้รูปภาพใช้ง่ายขึ้นเหมือนใน getMyOrders
+      const formattedItems = order.items.map((item) => {
+        const { product, ...itemInfo } = item;
+        return {
+          ...itemInfo,
+          product: {
+            id: product.id,
+            name: product.name,
+            price: product.price,
+            imageUrl: product.images?.[0]?.url || null,
+          },
+        };
+      });
+
+      return {
+        ...order,
+        items: formattedItems,
+      };
+    } catch (error) {
+      if (error instanceof NotFoundException) throw error;
+
+      console.error('[OrderService.getOrderById] Error:', error);
+      throw new InternalServerErrorException({
+        message: 'เกิดข้อผิดพลาดในการดึงข้อมูลคำสั่งซื้อ',
+        code: 'FETCH_ORDER_BY_ID_FAILED',
+      });
+    }
+  }
+
+  async getMyOrders(userId: string) {
+    try {
+      const orders = await this.prisma.order.findMany({
+        where: { userId: userId },
+        orderBy: { createdAt: 'desc' }, // บิลล่าสุดอยู่บนสุด
+        include: {
+          items: {
+            include: {
+              product: {
+                select: {
+                  id: true,
+                  name: true,
+                  // ✨ ดึงรูปหน้าปก (isMain: true) มาแค่รูปเดียว
+                  images: {
+                    where: { isMain: true },
+                    select: { url: true },
+                    take: 1,
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+
+      // 💄 การ Transform ข้อมูล (แต่งตัวให้หน้าบ้านใช้ง่าย)
+      return orders.map((order) => ({
+        ...order,
+        items: order.items.map((item) => {
+          // ดึง URL ออกมาจาก Array images (ถ้าไม่มีให้เป็น null)
+          const mainImageUrl = item.product.images?.[0]?.url || null;
+
+          // ลบฟิลด์ images (ที่เป็น array) ออกไป ไม่ให้รก
+          const { images, ...productInfo } = item.product;
+
+          return {
+            ...item,
+            product: {
+              ...productInfo,
+              imageUrl: mainImageUrl, // ส่งเป็น String เส้นเดียวไปเลย
+            },
+          };
+        }),
+      }));
+    } catch (error) {
+      console.error('[OrderService.getMyOrders] Error:', error);
+      throw new InternalServerErrorException({
+        message: 'ไม่สามารถดึงข้อมูลประวัติการสั่งซื้อได้',
+        code: 'FETCH_MY_ORDERS_FAILED',
       });
     }
   }
