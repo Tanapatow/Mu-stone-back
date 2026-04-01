@@ -60,10 +60,26 @@ model User {
   chatRooms    ChatRoom[]
   sentMessages Message[]    @relation("SentMessages")
 
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt      DateTime        @updatedAt @map("updated_at") @db.Timestamptz()
+  passwordResets PasswordReset[]
 
   @@map("users")
+}
+
+model PasswordReset {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  expiresAt DateTime @map("expires_at") @db.Timestamptz()
+  isUsed    Boolean  @default(false) @map("is_used")
+
+  // 🔗 เชื่อมกลับไปหา User
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@map("password_resets")
 }
 
 //  2. ที่อยู่ (Address)
