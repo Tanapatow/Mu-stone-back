@@ -144,8 +144,9 @@ export class OrderService {
     }
   }
 
-  async getAllOrders({ limit = 10, page = 1, status }: GetAllOrderDto) {
+  async getAllOrders(getAllOrderDto: GetAllOrderDto) {
     try {
+      const { limit = 10, page = 1, status } = getAllOrderDto;
       // ใช้ Prisma.OrderWhereInput เพื่อความปลอดภัยของ Type
       const whereCondition: Prisma.OrderWhereInput = status
         ? { status: status }

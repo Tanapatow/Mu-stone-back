@@ -1,4 +1,11 @@
-import { Controller, Get, Param, ParseUUIDPipe, Post } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { OrderService } from './order.service';
 import { ResponseMessage } from 'src/common/decorators/message-response.decorator';
@@ -18,18 +25,18 @@ export class OrderController {
 
   @Roles('ADMIN')
   @Get('admin/all')
-  async getAllOrder(getAllOrderDto: GetAllOrderDto) {
+  async getAllOrder(@Query() getAllOrderDto: GetAllOrderDto) {
     return await this.orderService.getAllOrders(getAllOrderDto);
-  }
-
-  @Get(':id')
-  async getOrderById(@Param('id', ParseUUIDPipe) id: string) {
-    return this.orderService.getOrderById(id);
   }
 
   @Roles('USER')
   @Get('me')
   async getMyOrder(@CurrentUser('sub') userId: string) {
     return this.orderService.getMyOrders(userId);
+  }
+
+  @Get(':id')
+  async getOrderById(@Param('id', ParseUUIDPipe) id: string) {
+    return this.orderService.getOrderById(id);
   }
 }
