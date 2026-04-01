@@ -16,6 +16,7 @@ import { GenaiModule } from './shared/genai/genai.module';
 import { OrderModule } from './order/order.module';
 import { StripeModule } from './stripe/stripe.module';
 import { SocketModule } from './socket/socket.module';
+import { MailModule } from './shared/mail/mail.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { SocketModule } from './socket/socket.module';
     OrderModule,
     StripeModule,
     SocketModule,
+    MailModule,
   ],
   controllers: [],
   providers: [
