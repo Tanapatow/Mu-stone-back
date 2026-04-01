@@ -14,6 +14,7 @@ import { CurrentUser } from './decorators/current-user.decorator';
 import type { JwtPayload } from './types/jwt-payload.type';
 import { UserWithoutPassword } from 'src/user/types/user.type';
 import { ResponseMessage } from 'src/common/decorators/message-response.decorator';
+import { ForgotPasswordDto, ResetPasswordDto } from './dtos/reset-password.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -38,5 +39,23 @@ export class AuthController {
     @CurrentUser() user: JwtPayload,
   ): Promise<UserWithoutPassword> {
     return this.authService.getCurrentUser(user.sub);
+  }
+
+  @Public()
+  @ResponseMessage('ส่งลิงก์รีเซ็ตรหัสผ่านไปที่อีเมลเรียบร้อยแล้ว')
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK) // คืนค่า 200 เพราะเป็นการประมวลผลสำเร็จ (ไม่ใช่การสร้าง Data ใหม่แบบ 201)
+  async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
+    await this.authService.forgotPassword(forgotPasswordDto.email);
+  }
+
+  @Public()
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
+    return this.authService.resetPassword(
+      resetPasswordDto.token,
+      resetPasswordDto.password,
+    );
   }
 }
