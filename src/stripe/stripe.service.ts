@@ -10,7 +10,7 @@ import {
   Product,
 } from 'src/database/generated/prisma/client';
 import { PrismaService } from 'src/database/prisma.service';
-import { OrderGateway } from 'src/order/order.gateway';
+import { OrderGateway } from 'src/socket/order.gateway';
 import Stripe from 'stripe';
 
 export type OrderWithItems = Order & {
