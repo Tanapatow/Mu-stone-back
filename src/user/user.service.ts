@@ -223,4 +223,19 @@ export class UserService {
       });
     }
   }
+
+  async getAddress(userId: string) {
+    try {
+      const address = await this.prisma.address.findUnique({
+        where: { userId },
+      });
+      return address ?? null;
+    } catch (error) {
+      console.log('error from get address', error);
+      throw new InternalServerErrorException({
+        message: 'ไม่สามารถดึงข้อมูลที่อยู่ได้',
+        code: 'GET_ADDRESS_FAILED',
+      });
+    }
+  }
 }
