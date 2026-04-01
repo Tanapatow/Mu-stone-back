@@ -10,6 +10,7 @@ import {
   Product,
 } from 'src/database/generated/prisma/client';
 import { PrismaService } from 'src/database/prisma.service';
+import { OrderGateway } from 'src/order/order.gateway';
 import Stripe from 'stripe';
 
 export type OrderWithItems = Order & {
@@ -25,6 +26,7 @@ export class StripeService {
   constructor(
     private readonly typedConfigService: TypedConfigService,
     private readonly prisma: PrismaService,
+    private readonly orderGateway: OrderGateway,
   ) {
     const secretKey = this.typedConfigService.get('STRIPE_SECRET_KEY');
     this.stripe = new Stripe(secretKey, {
@@ -113,10 +115,11 @@ export class StripeService {
         console.log(
           `✅ [Webhook] บิล ${orderId} ชำระเงินสำเร็จและอัปเดตสถานะแล้ว!`,
         );
+
+        this.orderGateway.notifyOrderStatusUpdate(orderId, 'PAID');
       }
     }
 
-    // 5. ตอบกลับ Stripe ไปว่า "รับทราบแล้วจ้า" (ถ้าไม่ตอบกลับ Stripe จะพยายามยิงซ้ำเรื่อยๆ)
     return { received: true };
   }
 }
