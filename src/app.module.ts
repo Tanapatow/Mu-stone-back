@@ -15,6 +15,7 @@ import { FortuneModule } from './fortune/fortune.module';
 import { GenaiModule } from './shared/genai/genai.module';
 import { OrderModule } from './order/order.module';
 import { StripeModule } from './stripe/stripe.module';
+import { SocketModule } from './socket/socket.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { StripeModule } from './stripe/stripe.module';
     GenaiModule,
     OrderModule,
     StripeModule,
+    SocketModule,
   ],
   controllers: [],
   providers: [
