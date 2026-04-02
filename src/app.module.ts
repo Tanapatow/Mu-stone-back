@@ -17,6 +17,7 @@ import { OrderModule } from './order/order.module';
 import { StripeModule } from './stripe/stripe.module';
 import { SocketModule } from './socket/socket.module';
 import { MailModule } from './shared/mail/mail.module';
+import { ChatModule } from './chat/chat.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { MailModule } from './shared/mail/mail.module';
     StripeModule,
     SocketModule,
     MailModule,
+    ChatModule,
   ],
   controllers: [],
   providers: [
