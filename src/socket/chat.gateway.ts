@@ -14,26 +14,8 @@ import { ChatService } from '../chat/chat.service'; // ชี้ path ให้�
 
 import { WsAuthGuard } from 'src/auth/guards/ws-auth.guard';
 import type { AuthSocket } from 'src/@types/socket';
+import { JoinChatDto, MarkReadDto, SendMessageDto } from './dtos/chat.dto';
 
-// ==========================================
-// 🛡️ DTOs: กำหนด Type ให้ Payload ที่รับมาจากหน้าบ้าน (ห้ามเป็น any เด็ดขาด)
-// ==========================================
-interface JoinChatDto {
-  userId?: string; // แอดมินอาจจะส่ง ID ลูกค้ามา ถ้าลูกค้าส่งมาเองจะเป็น undefined
-}
-
-interface SendMessageDto {
-  roomId: string;
-  content: string;
-}
-
-interface MarkReadDto {
-  roomId: string;
-}
-
-// ==========================================
-// 🚀 GATEWAY
-// ==========================================
 @WebSocketGateway({ namespace: 'chat', cors: { origin: '*' } })
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
@@ -52,10 +34,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.logger.log(`Client disconnected: ${client.id}`);
   }
 
-  // ==========================================
-  // 1. เข้าห้องแชท (ต้องผ่าน Guard)
-  // ==========================================
-  @UseGuards(WsAuthGuard) // 🌟 แปะ Guard ป้องกัน!
+  @UseGuards(WsAuthGuard)
   @SubscribeMessage('join_chat')
   async handleJoinChat(
     @ConnectedSocket() client: AuthSocket,
@@ -93,9 +72,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
-  // ==========================================
-  // 2. ส่งข้อความ (ต้องผ่าน Guard)
-  // ==========================================
   @UseGuards(WsAuthGuard)
   @SubscribeMessage('send_message')
   async handleSendMessage(
