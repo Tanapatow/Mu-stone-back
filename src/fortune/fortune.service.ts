@@ -164,4 +164,35 @@ export class FortuneService {
       });
     }
   }
+
+  async getMyFortuneLogs(userId: string) {
+    try {
+      const logs = await this.prisma.fortuneLog.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        include: {
+          cards: true,
+          recommendedProducts: {
+            include: {
+              images: { where: { isMain: true }, select: { url: true } },
+            },
+          },
+        },
+      });
+
+      return logs.map((log) => ({
+        ...log,
+        recommendedProducts: log.recommendedProducts.map((product) => {
+          const { images, ...rest } = product;
+          return { ...rest, imageUrl: images?.[0]?.url ?? null };
+        }),
+      }));
+    } catch (error) {
+      console.error('[FortuneService.getMyFortuneLogs] Error:', error);
+      throw new InternalServerErrorException({
+        message: 'ไม่สามารถดึงประวัติดวงได้',
+        code: 'FETCH_FORTUNE_LOGS_FAILED',
+      });
+    }
+  }
 }

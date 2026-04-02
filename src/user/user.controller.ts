@@ -51,4 +51,9 @@ export class UserController {
   async getAllUser(@Query() getAllUserDto: GetAllUserDto) {
     return await this.userService.getAllUsers(getAllUserDto);
   }
+
+  @Get('address')
+  async getAddress(@CurrentUser('sub') userId: string) {
+    return this.userService.getAddress(userId);
+  }
 }
