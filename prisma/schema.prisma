@@ -53,7 +53,7 @@ model User {
   isActive Boolean @default(true) @map("is_active")
   role     Role    @default(USER)
 
-  address      Address?
+  address      Address[]
   cart         Cart?
   orders       Order[]
   fortuneLogs  FortuneLog[]
@@ -85,9 +85,11 @@ model PasswordReset {
 //  2. ที่อยู่ (Address)
 model Address {
   id     String @id @default(uuid())
-  userId String @unique @map("user_id")
+  userId String @map("user_id")
   user   User   @relation(fields: [userId], references: [id])
 
+  title        String   @default("บ้าน") // เก็บชื่อเรียก เช่น "บ้านพักอาศัย", "ที่ทำงาน"
+  isDefault    Boolean  @default(false) @map("is_default")
   receiverName String   @map("receiver_name")
   phone        String
   addressLine1 String   @map("address_line_1")

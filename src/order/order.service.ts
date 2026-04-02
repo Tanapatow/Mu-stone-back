@@ -25,7 +25,13 @@ export class OrderService {
       const user = await this.prisma.user.findUnique({
         where: { id: userId },
         include: {
-          address: true, // ดึงที่อยู่จัดส่งมาด้วย
+          address: {
+            // 👈 แก้ตรงนี้: ดึงที่อยู่มาทั้งหมด
+            orderBy: [
+              { isDefault: 'desc' }, // ดึงที่อยู่ค่าเริ่มต้นขึ้นมาก่อน
+              { createdAt: 'desc' }, // ตามด้วยที่อยู่ล่าสุด
+            ],
+          },
           cart: {
             include: {
               items: {
@@ -37,7 +43,7 @@ export class OrderService {
       });
 
       // 2. เช็คว่ามีที่อยู่จัดส่งหรือยัง? (บังคับว่าต้องมีถึงจะซื้อได้)
-      if (!user?.address) {
+      if (!user?.address || user.address.length === 0) {
         throw new BadRequestException({
           message: 'โปรดเพิ่มที่อยู่สำหรับจัดส่งก่อนทำการสั่งซื้อ',
           code: 'ADDRESS_NOT_FOUND',
@@ -68,7 +74,7 @@ export class OrderService {
       }
 
       // 5. ปั้น Snapshot ที่อยู่จัดส่ง (เก็บเป็น String แข็งๆ ไว้ในบิลเลย)
-      const addr = user.address;
+      const addr = user.address[0]; // 👈 แก้ตรงนี้: หยิบ Object แรกจาก Array
       const addressSnapshot = `ผู้รับ: ${addr.receiverName} โทร: ${addr.phone}\nที่อยู่: ${addr.addressLine1} ต.${addr.subDistrict} อ.${addr.district} จ.${addr.province} ${addr.postalCode}`;
 
       const order = await this.prisma.$transaction(async (prisma) => {
