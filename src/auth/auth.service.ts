@@ -15,9 +15,13 @@ import { UserWithoutPassword } from 'src/user/types/user.type';
 import { PrismaService } from 'src/database/prisma.service';
 import * as crypto from 'crypto';
 import { MailService } from 'src/shared/mail/mail.service';
+import { OAuth2Client } from 'google-auth-library';
+import { TypedConfigService } from 'src/config/typed-config.service';
+import { GooglePayload } from './types/google-payload.type';
 
 @Injectable()
 export class AuthService {
+  private googleClient: OAuth2Client;
   private readonly logger = new Logger(AuthService.name);
   constructor(
     private readonly userService: UserService,
@@ -25,7 +29,12 @@ export class AuthService {
     private readonly authTokenService: AuthTokenService,
     private readonly prisma: PrismaService,
     private readonly mailService: MailService,
-  ) {}
+    private readonly typedConfigService: TypedConfigService,
+  ) {
+    this.googleClient = new OAuth2Client(
+      this.typedConfigService.get('GOOGLE_CLIENT_ID'),
+    );
+  }
 
   async register(createUserDto: CreateUserDto): Promise<void> {
     await this.userService.create(createUserDto);
@@ -41,6 +50,12 @@ export class AuthService {
         code: 'INVALID_CREDENTIALS',
       });
 
+    if (!user.password) {
+      throw new UnauthorizedException({
+        message: 'อีเมลนี้ถูกผูกไว้กับบัญชี Google กรุณาเข้าสู่ระบบด้วย Google',
+        code: 'USE_SOCIAL_LOGIN',
+      });
+    }
     const isMatch = await this.bcryptService.compare(
       loginDto.password,
       user.password,
@@ -158,5 +173,82 @@ export class AuthService {
         code: 'RESET_PASSWORD_DATABASE_ERROR',
       });
     }
+  }
+
+  async authenticateGoogleToken(idToken: string): Promise<GooglePayload> {
+    try {
+      const ticket = await this.googleClient.verifyIdToken({
+        idToken: idToken,
+        audience: this.typedConfigService.get('GOOGLE_CLIENT_ID'),
+      });
+
+      const payload = ticket.getPayload();
+
+      if (!payload || !payload.email) {
+        throw new UnauthorizedException({
+          message: 'โครงสร้างข้อมูล Google Token ไม่ถูกต้อง',
+          code: 'GOOGLE_AUTH_INVALID_PAYLOAD',
+        });
+      }
+
+      return {
+        googleId: payload.sub,
+        email: payload.email,
+        firstName: payload.given_name || '',
+        lastName: payload.family_name || '',
+      };
+    } catch (error) {
+      this.logger.error(
+        `[authenticateGoogleToken] Error: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      throw new UnauthorizedException({
+        message: 'การยืนยันตัวตนกับ Google ล้มเหลว',
+        code: 'GOOGLE_AUTH_FAILED',
+      });
+    }
+  }
+
+  // ==========================================
+  // 🤝 2. จัดการ Login/Register (OAuth)
+  // ==========================================
+  async validateOAuthLogin(googleUser: GooglePayload) {
+    let user = await this.prisma.user.findUnique({
+      where: { email: googleUser.email },
+    });
+
+    if (!user) {
+      user = await this.prisma.user.create({
+        data: {
+          email: googleUser.email,
+          firstName: googleUser.firstName,
+          lastName: googleUser.lastName,
+          googleId: googleUser.googleId,
+          provider: 'GOOGLE',
+        },
+      });
+    } else if (!user.googleId) {
+      user = await this.prisma.user.update({
+        where: { email: googleUser.email },
+        data: {
+          googleId: googleUser.googleId,
+          provider: 'GOOGLE',
+        },
+      });
+    }
+
+    const payload = { sub: user.id, email: user.email, role: user.role };
+    // เช็คใน AuthTokenService ของคุณว่า sign เป็น async หรือเปล่า ถ้าใช่ให้เติม await นะครับ
+    const token = await this.authTokenService.sign(payload);
+
+    return {
+      accessToken: token,
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        provider: user.provider,
+      },
+    };
   }
 }
