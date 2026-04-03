@@ -38,17 +38,24 @@ enum Gender {
   OTHER
 }
 
+enum Provider {
+  LOCAL
+  GOOGLE
+}
+
 //  MODELS
 
 // 1. ผู้ใช้งาน (User)
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  firstName String   @map("first_name")
-  lastName  String   @map("last_name")
-  dob       DateTime @db.Date
-  gender    Gender
+  id        String    @id @default(uuid())
+  email     String    @unique
+  googleId  String?   @unique
+  password  String?
+  firstName String    @map("first_name")
+  lastName  String    @map("last_name")
+  dob       DateTime? @db.Date
+  gender    Gender?
+  provider  Provider  @default(LOCAL)
 
   isActive Boolean @default(true) @map("is_active")
   role     Role    @default(USER)

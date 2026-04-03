@@ -16,14 +16,15 @@ import { HandlebarsAdapter } from '@nestjs-modules/mailer/adapters/handlebars.ad
         transport: {
           // 🎯 4. พิมพ์ configService.get() ปุ๊บ Auto-complete ชื่อตัวแปร .env จะเด้งขึ้นมาเลย! (แถมไม่ต้องใส่ <string> แล้ว)
           host: configService.get('MAIL_HOST'),
-          secure: false,
+          port: configService.get('MAIL_PORT'),
+          secure: configService.get('MAIL_PORT') === 465,
           auth: {
             user: configService.get('MAIL_USER'),
             pass: configService.get('MAIL_PASS'),
           },
         },
         defaults: {
-          from: '"MU Store Support" <noreply@mu-store.com>',
+          from: `"MU Store Support" <${configService.get('MAIL_USER')}>`,
         },
         template: {
           dir: join(__dirname, 'templates'),

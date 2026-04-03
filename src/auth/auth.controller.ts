@@ -58,4 +58,14 @@ export class AuthController {
       resetPasswordDto.password,
     );
   }
+
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @Post('google/login')
+  async googleLogin(@Body('token') token: string) {
+    const googleUser = await this.authService.authenticateGoogleToken(token);
+
+    // 2. จัดการ Database และออก Access Token ของเราเอง
+    return this.authService.validateOAuthLogin(googleUser);
+  }
 }
