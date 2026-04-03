@@ -1,8 +1,10 @@
 import {
+  Body,
   Controller,
   Get,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Query,
 } from '@nestjs/common';
@@ -11,6 +13,7 @@ import { OrderService } from './order.service';
 import { ResponseMessage } from 'src/common/decorators/message-response.decorator';
 import { GetAllOrderDto } from './dto/get-all-order.dto';
 import { Roles } from 'src/auth/decorators/role.decorator';
+import { OrderStatus } from 'src/database/generated/prisma/enums';
 
 @Controller('order')
 export class OrderController {
@@ -27,6 +30,15 @@ export class OrderController {
   @Get('admin/all')
   async getAllOrder(@Query() getAllOrderDto: GetAllOrderDto) {
     return await this.orderService.getAllOrders(getAllOrderDto);
+  }
+
+  @Roles('ADMIN')
+  @Patch('admin/:id/status')
+  async updateOrderStatus(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body('status') status: OrderStatus,
+  ) {
+    return await this.orderService.updateOrderStatus(id, status);
   }
 
   @Roles('USER')
