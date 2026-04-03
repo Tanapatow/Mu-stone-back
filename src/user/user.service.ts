@@ -15,6 +15,7 @@ import { UserWithoutPassword } from './types/user.type';
 import { AddressDto } from './dtos/address.dto';
 import { UpdateUserDto } from './dtos/update-user-dto';
 import { GetAllUserDto } from './dtos/get-all-user.dto';
+import { UpdateAddressDto } from './dtos/update-address.dto';
 
 @Injectable()
 export class UserService {
@@ -64,37 +65,6 @@ export class UserService {
       });
 
     return user;
-  }
-
-  //  เพิ่มหรือแก้ไขที่อยู่จัดส่ง (Upsert Address)
-
-  async upsertAddress(userId: string, addressDto: AddressDto) {
-    try {
-      await this.findById(userId);
-
-      const address = await this.prisma.address.upsert({
-        where: { userId: userId },
-        update: { ...addressDto },
-        create: {
-          ...addressDto,
-          userId: userId,
-        },
-      });
-
-      return address;
-    } catch (error) {
-      console.error(
-        `[UserService.upsertAddress] Error for user ${userId}:`,
-        error,
-      );
-      if (error instanceof HttpException) {
-        throw error;
-      }
-      throw new InternalServerErrorException({
-        message: 'ไม่สามารถบันทึกที่อยู่ได้ โปรดลองใหม่อีกครั้ง',
-        code: 'UPSERT_ADDRESS_FAILED',
-      });
-    }
   }
 
   async updateProfile(userId: string, updateUserDto: UpdateUserDto) {
@@ -224,17 +194,163 @@ export class UserService {
     }
   }
 
-  async getAddress(userId: string) {
+  async getAddresses(userId: string) {
     try {
-      const address = await this.prisma.address.findUnique({
+      const addresses = await this.prisma.address.findMany({
         where: { userId },
+        orderBy: [
+          { isDefault: 'desc' }, // ให้ที่อยู่หลัก (true) ขึ้นมาเป็นอันดับ 1
+          { createdAt: 'desc' }, // เรียงตามเวลาที่สร้าง
+        ],
       });
-      return address ?? null;
+      return addresses; // คืนค่าเป็น Array []
     } catch (error) {
-      console.log('error from get address', error);
+      console.log('error from get addresses', error);
       throw new InternalServerErrorException({
         message: 'ไม่สามารถดึงข้อมูลที่อยู่ได้',
-        code: 'GET_ADDRESS_FAILED',
+        code: 'GET_ADDRESSES_FAILED',
+      });
+    }
+  }
+
+  async createAddress(userId: string, addressDto: AddressDto) {
+    try {
+      await this.findById(userId); // เช็คว่ามี User ไหม
+
+      const addressCount = await this.prisma.address.count({
+        where: { userId },
+      });
+
+      // 🌟 2. ถ้ามีครบ 4 แล้ว ให้หยุดและแจ้งเตือนทันที
+      if (addressCount >= 4) {
+        throw new ForbiddenException({
+          message: 'คุณสามารถเพิ่มที่อยู่ได้สูงสุด 4 ที่อยู่เท่านั้น',
+          code: 'ADDRESS_LIMIT_REACHED',
+        });
+      }
+
+      addressDto.isDefault = true;
+
+      return await this.prisma.$transaction(async (prisma) => {
+        // ถ้าผู้ใช้เลือกให้เป็น "ที่อยู่เริ่มต้น" ต้องไปปลดที่อยู่อื่นๆ ให้เป็น false ก่อน
+        if (addressDto.isDefault) {
+          await prisma.address.updateMany({
+            where: { userId, isDefault: true },
+            data: { isDefault: false },
+          });
+        }
+
+        // สร้างที่อยู่ใหม่
+        const newAddress = await prisma.address.create({
+          data: {
+            ...addressDto,
+            userId,
+          },
+        });
+
+        return newAddress;
+      });
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      console.error(`[createAddress] Error for user ${userId}:`, error);
+      throw new InternalServerErrorException({
+        message: 'ไม่สามารถเพิ่มที่อยู่ใหม่ได้ โปรดลองใหม่อีกครั้ง',
+        code: 'CREATE_ADDRESS_FAILED',
+      });
+    }
+  }
+
+  // 🌟 2.2 ฟังก์ชันแก้ไขที่อยู่เดิม (ต้องรับ addressId มาด้วย)
+  async updateAddress(
+    userId: string,
+    addressId: string,
+    updateAddressDto: UpdateAddressDto,
+  ) {
+    try {
+      // ตรวจสอบว่าที่อยู่นี้เป็นของ User คนนี้จริงๆ ป้องกันการแก้ข้ามคน
+      const existingAddress = await this.prisma.address.findFirst({
+        where: { id: addressId, userId },
+      });
+
+      if (!existingAddress) {
+        throw new NotFoundException({
+          message: 'ไม่พบที่อยู่ที่ต้องการแก้ไข',
+          code: 'ADDRESS_NOT_FOUND',
+        });
+      }
+
+      return await this.prisma.$transaction(async (prisma) => {
+        // ถ้าผู้ใช้ตั้งค่าให้อันนี้เป็นค่าเริ่มต้นใหม่ ต้องปลดอันเก่าออก
+        if (updateAddressDto.isDefault) {
+          await prisma.address.updateMany({
+            where: { userId, isDefault: true, id: { not: addressId } },
+            data: { isDefault: false },
+          });
+        }
+
+        // อัปเดตข้อมูล
+        const updatedAddress = await prisma.address.update({
+          where: { id: addressId },
+          data: { ...updateAddressDto },
+        });
+
+        return updatedAddress;
+      });
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      console.error(`[updateAddress] Error:`, error);
+      throw new InternalServerErrorException({
+        message: 'ไม่สามารถอัปเดตที่อยู่ได้ โปรดลองใหม่อีกครั้ง',
+        code: 'UPDATE_ADDRESS_FAILED',
+      });
+    }
+  }
+
+  // 🌟 3. ฟังก์ชันลบที่อยู่
+  async deleteAddress(userId: string, addressId: string) {
+    try {
+      const existingAddress = await this.prisma.address.findFirst({
+        where: { id: addressId, userId },
+      });
+
+      if (!existingAddress) {
+        throw new NotFoundException({
+          message: 'ไม่พบที่อยู่ที่ต้องการลบ',
+          code: 'ADDRESS_NOT_FOUND',
+        });
+      }
+
+      await this.prisma.$transaction(async (prisma) => {
+        // 1. ลบทิ้งไปก่อน
+        await prisma.address.delete({
+          where: { id: addressId },
+        });
+
+        // 2. ✨ ถ้าอันที่เพิ่งลบไปเป็น "ค่าเริ่มต้น" ให้หาอันอื่นมาเป็นแทน
+        if (existingAddress.isDefault) {
+          const remainingAddress = await prisma.address.findFirst({
+            where: { userId },
+            orderBy: { createdAt: 'desc' }, // เอาที่อยู่ที่เพิ่มล่าสุดมาเป็นแทน
+          });
+
+          // ถ้ายังมีที่อยู่เหลืออยู่ ค่อยอัปเดตให้เป็นค่าเริ่มต้น
+          if (remainingAddress) {
+            await prisma.address.update({
+              where: { id: remainingAddress.id },
+              data: { isDefault: true },
+            });
+          }
+        }
+      });
+
+      return;
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      console.error(`[deleteAddress] Error:`, error);
+
+      throw new InternalServerErrorException({
+        message: 'ไม่สามารถลบที่อยู่ได้ โปรดลองใหม่อีกครั้ง',
+        code: 'DELETE_ADDRESS_FAILED',
       });
     }
   }

@@ -1,11 +1,12 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseBoolPipe,
   Patch,
-  Put,
+  Post,
   Query,
 } from '@nestjs/common';
 import { UserService } from './user.service';
@@ -15,18 +16,11 @@ import { UpdateUserDto } from './dtos/update-user-dto';
 import { ResponseMessage } from 'src/common/decorators/message-response.decorator';
 import { Roles } from 'src/auth/decorators/role.decorator';
 import { GetAllUserDto } from './dtos/get-all-user.dto';
+import { UpdateAddressDto } from './dtos/update-address.dto';
 
 @Controller('user')
 export class UserController {
   constructor(private readonly userService: UserService) {}
-
-  @Put('address')
-  async updateAddress(
-    @CurrentUser('sub') userId: string,
-    @Body() addressDto: AddressDto,
-  ) {
-    return this.userService.upsertAddress(userId, addressDto);
-  }
 
   @ResponseMessage('อัพเดตข้อมูลโปรไฟล์สำเร็จ')
   @Patch()
@@ -51,9 +45,46 @@ export class UserController {
   async getAllUser(@Query() getAllUserDto: GetAllUserDto) {
     return await this.userService.getAllUsers(getAllUserDto);
   }
+  @Get('addresses')
+  async getMyAddresses(@CurrentUser('sub') userId: string) {
+    return this.userService.getAddresses(userId);
+  }
 
-  @Get('address')
-  async getAddress(@CurrentUser('sub') userId: string) {
-    return this.userService.getAddress(userId);
+  // 2. เพิ่มที่อยู่ใหม่
+  @Post('address')
+  async createAddress(
+    @CurrentUser('sub') userId: string,
+    @Body() addressDto: AddressDto,
+  ) {
+    return this.userService.createAddress(userId, addressDto);
+  }
+
+  @Patch('address/:addressId')
+  async updateAddress(
+    @CurrentUser('sub') userId: string,
+    @Param('addressId') addressId: string,
+    @Body() updateAddressDto: UpdateAddressDto,
+  ) {
+    return this.userService.updateAddress(userId, addressId, updateAddressDto);
+  }
+
+  @Patch('address/:addressId/default')
+  async setDefaultAddress(
+    @CurrentUser('sub') userId: string,
+    @Param('addressId') addressId: string,
+  ) {
+    // โยน { isDefault: true } เข้าไปใน Service เดิมได้เลย
+    return this.userService.updateAddress(userId, addressId, {
+      isDefault: true,
+    });
+  }
+
+  @ResponseMessage('ลบที่อยู่สำเร็จ')
+  @Delete('address/:addressId')
+  async deleteAddress(
+    @CurrentUser('sub') userId: string,
+    @Param('addressId') addressId: string,
+  ) {
+    return this.userService.deleteAddress(userId, addressId);
   }
 }
