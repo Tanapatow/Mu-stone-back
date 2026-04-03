@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Param } from '@nestjs/common';
 import { ChatService } from './chat.service';
 import { Roles } from 'src/auth/decorators/role.decorator';
 
@@ -10,5 +10,11 @@ export class ChatController {
   @Get('admin/rooms')
   async getRoomsForAdmin() {
     return await this.chatService.getAdminRooms();
+  }
+
+  @Roles('ADMIN')
+  @Get('admin/rooms/:roomId/history')
+  async getChatHistory(@Param('roomId') roomId: string) {
+    return await this.chatService.getChatHistory(roomId);
   }
 }

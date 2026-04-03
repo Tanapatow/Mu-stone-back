@@ -8,7 +8,7 @@ import {
 import { PrismaService } from 'src/database/prisma.service';
 import { StripeService } from 'src/stripe/stripe.service';
 import { GetAllOrderDto } from './dto/get-all-order.dto';
-import { Prisma } from 'src/database/generated/prisma/client';
+import { OrderStatus, Prisma } from 'src/database/generated/prisma/client';
 
 @Injectable()
 export class OrderService {
@@ -324,6 +324,31 @@ export class OrderService {
       throw new InternalServerErrorException({
         message: 'ไม่สามารถดึงข้อมูลประวัติการสั่งซื้อได้',
         code: 'FETCH_MY_ORDERS_FAILED',
+      });
+    }
+  }
+
+  async updateOrderStatus(id: string, status: OrderStatus) {
+    try {
+      const order = await this.prisma.order.findUnique({ where: { id } });
+      if (!order) {
+        throw new NotFoundException({
+          message: `ไม่พบคำสั่งซื้อรหัส ${id}`,
+          code: 'ORDER_NOT_FOUND',
+        });
+      }
+
+      const updated = await this.prisma.order.update({
+        where: { id },
+        data: { status },
+      });
+
+      return updated;
+    } catch (error) {
+      if (error instanceof NotFoundException) throw error;
+      throw new InternalServerErrorException({
+        message: 'ไม่สามารถอัปเดตสถานะคำสั่งซื้อได้',
+        code: 'UPDATE_ORDER_STATUS_FAILED',
       });
     }
   }
