@@ -18,6 +18,7 @@ import { StripeModule } from './stripe/stripe.module';
 import { SocketModule } from './socket/socket.module';
 import { MailModule } from './shared/mail/mail.module';
 import { ChatModule } from './chat/chat.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { ChatModule } from './chat/chat.module';
     SocketModule,
     MailModule,
     ChatModule,
+    DashboardModule,
   ],
   controllers: [],
   providers: [

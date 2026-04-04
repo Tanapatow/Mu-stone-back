@@ -109,7 +109,9 @@ export class ChatService {
             orderBy: { createdAt: 'desc' }, // เอาข้อความล่าสุดมาโชว์ Preview
           },
           _count: {
-            select: { messages: { where: { isRead: false } } }, // นับจำนวนที่ยังไม่ได้อ่าน
+            select: {
+              messages: { where: { isRead: false, sender: { role: 'USER' } } },
+            }, // นับจำนวนที่ยังไม่ได้อ่าน
           },
         },
       });
