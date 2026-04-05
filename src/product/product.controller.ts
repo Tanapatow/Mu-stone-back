@@ -39,6 +39,11 @@ export class ProductController {
   }
 
   @Public()
+  @Get('stone-types')
+  async getStoneTypes() {
+    return await this.produceService.getStoneTypes();
+  }
+  @Public()
   @Get(':id')
   async getProductById(@Param('id') id: string) {
     return await this.produceService.findById(id);

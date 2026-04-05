@@ -354,4 +354,13 @@ export class UserService {
       });
     }
   }
+
+  // ดำิ่ม active user couint
+  async getUserStats() {
+    const [totalItems, activeCount] = await Promise.all([
+      this.prisma.user.count(),
+      this.prisma.user.count({ where: { isActive: true } }),
+    ]);
+    return { totalItems, activeCount };
+  }
 }

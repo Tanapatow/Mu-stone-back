@@ -13,6 +13,8 @@ export class MailService {
 
   async sendResetPasswordEmail(email: string, token: string) {
     try {
+      console.log('sending email to:', email);
+      console.log('from:', this.configService.get('MAIL_USER'));
       // 1. ดึงค่า URL หน้าบ้านแบบ Type-Safe
       const frontendUrl = this.configService.get('FRONTEND_URL');
 

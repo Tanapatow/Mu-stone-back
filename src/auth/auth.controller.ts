@@ -46,6 +46,7 @@ export class AuthController {
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK) // คืนค่า 200 เพราะเป็นการประมวลผลสำเร็จ (ไม่ใช่การสร้าง Data ใหม่แบบ 201)
   async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
+    console.log('forgotPassword called withaascasc:', forgotPasswordDto.email);
     await this.authService.forgotPassword(forgotPasswordDto.email);
   }
 
