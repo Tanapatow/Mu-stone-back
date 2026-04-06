@@ -84,7 +84,6 @@ export class AuthService {
   async forgotPassword(email: string) {
     try {
       const user = await this.prisma.user.findUnique({ where: { email } });
-
       if (!user) {
         return {
           message:

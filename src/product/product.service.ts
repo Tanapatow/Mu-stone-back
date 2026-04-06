@@ -278,4 +278,14 @@ export class ProductService {
       },
     });
   }
+
+  async getStoneTypes(): Promise<string[]> {
+    const products = await this.prisma.product.findMany({
+      where: { isActive: true },
+      select: { stoneType: true },
+      distinct: ['stoneType'],
+      orderBy: { stoneType: 'asc' },
+    });
+    return products.map((p) => p.stoneType);
+  }
 }

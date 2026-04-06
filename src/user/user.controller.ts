@@ -41,6 +41,12 @@ export class UserController {
   }
 
   @Roles('ADMIN')
+  @Get('stats')
+  async getUserStats() {
+    return this.userService.getUserStats();
+  }
+
+  @Roles('ADMIN')
   @Get()
   async getAllUser(@Query() getAllUserDto: GetAllUserDto) {
     return await this.userService.getAllUsers(getAllUserDto);

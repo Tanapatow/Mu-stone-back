@@ -195,4 +195,41 @@ export class FortuneService {
       });
     }
   }
+
+  async getFortuneLogById(userId: string, logId: string) {
+    try {
+      const log = await this.prisma.fortuneLog.findFirst({
+        where: { id: logId, userId },
+        include: {
+          cards: true,
+          recommendedProducts: {
+            include: {
+              images: { where: { isMain: true }, select: { url: true } },
+            },
+          },
+        },
+      });
+
+      if (!log) {
+        throw new InternalServerErrorException({
+          message: 'ไม่พบข้อมูลการดูดวง',
+          code: 'FORTUNE_LOG_NOT_FOUND',
+        });
+      }
+
+      return {
+        ...log,
+        recommendedProducts: log.recommendedProducts.map((product) => {
+          const { images, ...rest } = product;
+          return { ...rest, imageUrl: images?.[0]?.url ?? null };
+        }),
+      };
+    } catch (error) {
+      if (error instanceof InternalServerErrorException) throw error;
+      throw new InternalServerErrorException({
+        message: 'ไม่สามารถดึงข้อมูลการดูดวงได้',
+        code: 'FETCH_FORTUNE_LOG_FAILED',
+      });
+    }
+  }
 }
