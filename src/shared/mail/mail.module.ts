@@ -10,10 +10,6 @@ import { HandlebarsAdapter } from '@nestjs-modules/mailer/adapters/handlebars.ad
     MailerModule.forRootAsync({
       inject: [TypedConfigService],
       useFactory: (configService: TypedConfigService) => {
-        console.log('MAIL_USER:', configService.get('MAIL_USER'));
-        console.log('MAIL_PASS:', configService.get('MAIL_PASS'));
-        console.log('MAIL_PORT:', configService.get('MAIL_PORT'));
-
         return {
           transport: {
             host: configService.get('MAIL_HOST'),

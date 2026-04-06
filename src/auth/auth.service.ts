@@ -107,7 +107,6 @@ export class AuthService {
       return;
     } catch (error) {
       // 🌟 ดักจับ Error และโยน 500 ออกไปแบบสวยงาม
-      console.log('❌ forgotPassword catch error:', error);
       const errorMessage =
         error instanceof Error ? error.message : String(error);
       this.logger.error(`[forgotPassword] Error: ${errorMessage}`);

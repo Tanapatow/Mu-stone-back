@@ -11,10 +11,6 @@ export class GenaiService {
     const apiKey = this.typedConfigService.get('GEMINI_API_KEY');
 
     this.genAI = new GoogleGenerativeAI(apiKey);
-    console.log('--- Checking API Key ---');
-    console.log(
-      apiKey ? 'Key exists (Length: ' + apiKey.length + ')' : 'Key is MISSING!',
-    );
   }
 
   // 2. ฟังก์ชันเรียกใช้ AI (เหมือนฟังก์ชัน upload ของ Cloudinary)
