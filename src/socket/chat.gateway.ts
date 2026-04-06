@@ -47,10 +47,15 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const targetUserId = data.userId || user.sub;
 
       // 1. เตรียมห้อง
-      const room = await this.chatService.getOrCreateRoom(targetUserId);
-      await client.join(room.id);
+      const { room, isNew } =
+        await this.chatService.getOrCreateRoom(targetUserId);
 
+      await client.join(room.id);
       this.logger.log(`User ${user.sub} joined room ${room.id}`);
+
+      if (isNew) {
+        this.server.emit('new_room', room);
+      }
 
       // 2. ดึงประวัติแชท
       const history = await this.chatService.getChatHistory(room.id);

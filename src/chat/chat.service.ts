@@ -14,16 +14,41 @@ export class ChatService {
 
   async getOrCreateRoom(userId: string) {
     try {
-      let room = await this.prisma.chatRoom.findFirst({
+      let isNew = false;
+
+      // 1. หาห้องแชทเดิมก่อน
+      let baseRoom = await this.prisma.chatRoom.findFirst({
         where: { userId, status: 'OPEN' },
       });
 
-      if (!room) {
-        room = await this.prisma.chatRoom.create({
+      // 2. ถ้าไม่มีให้สร้างใหม่
+      if (!baseRoom) {
+        baseRoom = await this.prisma.chatRoom.create({
           data: { userId, status: 'OPEN' },
         });
+        isNew = true;
       }
-      return room;
+
+      // 3. 🌟 ดึงข้อมูลห้องแบบจัดเต็ม (พร้อม Relation) เสมอ
+      // ใช้ findUniqueOrThrow เพื่อการันตีกับ TypeScript ว่า "ไม่เป็น null แน่นอน!"
+      const fullRoom = await this.prisma.chatRoom.findUniqueOrThrow({
+        where: { id: baseRoom.id },
+        include: {
+          user: { select: { firstName: true, lastName: true, email: true } },
+          messages: {
+            take: 1,
+            orderBy: { createdAt: 'desc' },
+          },
+          _count: {
+            select: {
+              messages: { where: { isRead: false, sender: { role: 'USER' } } },
+            },
+          },
+        },
+      });
+
+      // 4. คืนค่าออกแบบครบถ้วน
+      return { room: fullRoom, isNew };
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
